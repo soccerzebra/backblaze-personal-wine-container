@@ -3,6 +3,9 @@ name: Dockerhub README Sync
 on:
   push:
     branches: [ main ]
+    paths:
+      - README.md
+      - .github/workflows/dockerhub-readme-sync.yml
   workflow_dispatch:
 
 jobs:
@@ -10,6 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      # Docker Hub rejects a full_description over 25000 bytes with a generic
+      # HTTP 400, so check here where the message can say what is actually wrong.
+      - name: Check README fits Docker Hub's description limit
+        run: |
+          limit=25000
+          size=$(wc -c < README.md)
+          echo "README.md is $size bytes (limit $limit)."
+          if [ "$size" -gt "$limit" ]; then
+            echo "::error file=README.md::README.md is $size bytes, which is $((size - limit)) over Docker Hub's $limit byte description limit. Trim it, or sync a shorter file via the action's 'readme' input."
+            exit 1
+          fi
 
       - uses: meeDamian/sync-readme@v1.0.6
         with:

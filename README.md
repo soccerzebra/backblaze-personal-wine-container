@@ -14,29 +14,6 @@ It runs the Backblaze client and starts a virtual X server and a VNC server with
 
 ⚠️ This project is not affiliated with Backblaze Inc. ⚠️
 
-## Table of Content
-
-   * **[Backblaze Personal Wine Container](#backblaze-personal-wine-container)**
-      * [Table of Content](#table-of-content)
-      * [Project Status](#project-status)
-      * [Docker Images](#docker-images)
-         * [Content](#content)
-         * [Tags](#tags)
-         * [Platforms](#platforms)
-      * [Environment Variables](#environment-variables)
-      * [Config Directory](#config-directory)
-      * [Ports](#ports)
-      * [Volumes](#volumes)
-      * [Accessing the GUI](#accessing-the-gui)
-      * [Security](#security)
-         * [SSVNC](#ssvnc)
-         * [Certificates](#certificates)
-         * [VNC Password](#vnc-password)
-         * [DH Parameters](#dh-parameters)
-      * **[Installation Guide](#installation-guide)**
-      * [Additional Information](#additional-information)
-      * [Credits](#credits)
-
 ## Project Status
 
 This docker should just work for most people. But if you for example have a complex permissions setup in the filesystem you are trying to back up you will need good knowledge of docker to get it set up.
@@ -82,16 +59,7 @@ The previous `ubuntu18` and `ubuntu20` images are end-of-life and are no longer 
 
 ### Platforms
 
-| Platform | Support |
-|-----|-------------|
-| linux/amd64 | Fully supported |
-| linux/arm64 | Currently no support (maybe in the future) |
-| linux/arm/v7 | No support |
-| linux/arm/v6 | No support |
-| linux/riscv64 | Currently no support (maybe in the future) |
-| linux/s390x | No support |
-| linux/ppc64le | No support |
-| linux/386 | No support |
+`linux/amd64` is fully supported. `linux/arm64` and `linux/riscv64` are not supported today but may be in the future; `linux/arm/v7`, `linux/arm/v6`, `linux/s390x`, `linux/ppc64le` and `linux/386` are not supported.
 
 As Backblaze runs on Windows and MacOS, there is no point in supporting these platforms.
 
@@ -105,18 +73,18 @@ Environment variables can be set by adding one or more arguments `-e "<VAR>=<VAL
 |`DISABLE_AUTOUPDATE` | When `true`, the container never updates the installed Backblaze client (it stays on the version that was current when it was first installed). When `false`, the container checks Backblaze's client-version feed on start and reinstalls the latest release if a newer one is available. | true |
 |`FORCE_LATEST_UPDATE`| **Deprecated / no-op.** Backblaze no longer publishes old installer versions and the Internet Archive no longer mirrors them, so there is no "pinned" version to choose anymore — the container always installs the current release from backblaze.com. Kept only for backwards compatibility. | (ignored) |
 |`ENABLE_NETWORK_MOUNT_MASKING`| When `true`, network-backed mounts (NFS/SMB/CIFS) are overlaid with a local overlayfs so Backblaze treats them as fixed disks and backs them up (Backblaze otherwise refuses network drives). **Requires** the container to run with `cap_add: SYS_ADMIN` and `security_opt: apparmor:unconfined`. Leave unset for local mounts. See [Volumes → Option 2 (network shares)](#volumes). | (unset) |
-|`UMASK`| Mask that controls how file permissions are set for newly created files. The value of the mask is in octal notation.  By default, this variable is not set and the default umask of `022` is used, meaning that newly created files are readable by everyone, but only writable by the owner. See the following online umask calculator: http://wintelguy.com/umask-calc.pl | (unset) |
+|`UMASK`| Octal mask controlling permissions on newly created files. Defaults to `022`, meaning readable by everyone but writable only by the owner. | (unset) |
 |`TZ`| [TimeZone] of the container.  Timezone can also be set by mapping `/etc/localtime` between the host and the container. | `Etc/UTC` |
-|`APP_NICENESS`| Priority at which the application should run.  A niceness value of -20 is the highest priority and 19 is the lowest priority.  By default, niceness is not set, meaning that the default niceness of 0 is used.  **NOTE**: A negative niceness (priority increase) requires additional permissions.  In this case, the container should be run with the docker option `--cap-add=SYS_NICE`. | (unset) |
-|`USER_ID`| When mounting docker-volumes, permission issues can arise between the docker host and the container. You can pass the User_ID permissions to the container with this variable. | `1000` |
-|`GROUP_ID`| When mounting docker-volumes, permission issues can arise between the docker host and the container. You can pass the Group_ID permissions to the container with this variable. | `1000` |
+|`APP_NICENESS`| Priority the application runs at, from -20 (highest) to 19 (lowest). A negative value requires the docker option `--cap-add=SYS_NICE`. | (unset) |
+|`USER_ID`| User ID the application runs as. Useful when volume permissions differ between the host and the container. | `1000` |
+|`GROUP_ID`| Group ID the application runs as. Useful when volume permissions differ between the host and the container. | `1000` |
 |`CLEAN_TMP_DIR`| When set to `1`, all files in the `/tmp` directory are deleted during the container startup. | `1` |
 |`DISPLAY_WIDTH`| Width (in pixels) of the virtual screen's window. (Has to be divisible by 4) | `900` |
 |`DISPLAY_HEIGHT`| Height (in pixels) of the virtual screen's window. (Has to be divisible by 4) | `700` |
 |`SECURE_CONNECTION`| When set to `1`, an encrypted connection is used to access the application's GUI (either via a web browser or VNC client).  See the [Security](#security) section for more details. | `0` |
 |`VNC_PASSWORD`| Password needed to connect to the application's GUI.  See the [VNC Password](#vnc-password) section for more details. | (unset) |
-|`X11VNC_EXTRA_OPTS`| Extra options to pass to the x11vnc server running in the Docker container.  **WARNING**: For advanced users. Do not use unless you know what you are doing. | (unset) |
-|`ENABLE_CJK_FONT`| When set to `1`, open-source computer font `WenQuanYi Zen Hei` is installed.  This font contains a large range of Chinese/Japanese/Korean characters. | `0` |
+|`X11VNC_EXTRA_OPTS`| Extra options to pass to the x11vnc server. **WARNING**: advanced users only. | (unset) |
+|`ENABLE_CJK_FONT`| When set to `1`, installs the `WenQuanYi Zen Hei` font, which covers a large range of Chinese/Japanese/Korean characters. | `0` |
 |`STARTUP_LOGFILE`| The location for writing logs of the startup script, responsible for installing and starting the Backblaze app.  The default path is also backed up to Backblaze. | `/config/wine/dosdevices/c:/backblaze-wine-startapp.log` |
 
 ## Config Directory
@@ -251,30 +219,23 @@ HTTPs.
 When using a VNC client, the VNC connection is performed over SSL.  Note that
 few VNC clients support this method.  [SSVNC] is one of them.
 
-### SSVNC
+### VNC Password
 
-[SSVNC] is a VNC viewer that adds encryption security to VNC connections.
+Access to the GUI can be password protected in one of two ways:
+  * the `VNC_PASSWORD` environment variable, or
+  * a `.vncpass_clear` file at the root of the `/config` volume containing the
+    password in clear text. It is obfuscated into `.vncpass` on startup.
 
-While the Linux version of [SSVNC] works well, the Windows version has some
-issues.  At the time of writing, the latest version `1.0.30` is not functional,
-as a connection fails with the following error:
-```
-ReadExact: Socket error while reading
-```
-However, for your convienence, an unoffical and working version is provided
-here:
-
-https://github.com/jlesage/docker-baseimage-gui/raw/master/tools/ssvnc_windows_only-1.0.30-r1.zip
-
-The only difference with the offical package is that the bundled version of
-`stunnel` has been upgraded to version `5.49`, which fixes the connection
-problems.
+Enable `SECURE_CONNECTION` as well, so the password is not sent in the clear.
+Note that anyone with sufficient access to the host can recover the password,
+either from `docker inspect` or from `/config/.vncpass`.
 
 ### Certificates
 
-Here are the certificate files needed by the container.  By default, when they
-are missing, self-signed certificates are generated and used.  All files have
-PEM encoded, x509 certificates.
+TLS certificates live in `/config/certs/`. Self-signed ones are generated when
+they are missing, which is what causes browser warnings - supply your own to
+avoid them. The files are watched, and the relevant daemons restart when they
+change.
 
 | Container Path                  | Purpose                    | Content |
 |---------------------------------|----------------------------|---------|
@@ -282,54 +243,15 @@ PEM encoded, x509 certificates.
 |`/config/certs/web-privkey.pem`  |HTTPs connection encryption.|Web server's private key.|
 |`/config/certs/web-fullchain.pem`|HTTPs connection encryption.|Web server's certificate, bundled with any root and intermediate certificates.|
 
-**NOTE**: To prevent any certificate validity warnings/errors from the browser
-or VNC client, make sure to supply your own valid certificates.
+2048 bit Diffie-Hellman parameters are generated into
+`/config/certs/dhparam.pem` when that file is missing. This is a one-time
+operation, but it does make that first start slower.
 
-**NOTE**: Certificate files are monitored and relevant daemons are automatically
-restarted when changes are detected.
-
-### VNC Password
-
-To restrict access to your application, a password can be specified.  This can
-be done via two methods:
-  * By using the `VNC_PASSWORD` environment variable.
-  * By creating a `.vncpass_clear` file at the root of the `/config` volume.
-    This file should contains the password in clear-text.  During the container
-    startup, content of the file is obfuscated and moved to `.vncpass`.
-
-The level of security provided by the VNC password depends on two things:
-  * The type of communication channel (encrypted/unencrypted).
-  * How secure access to the host is.
-
-When using a VNC password, it is highly desirable to enable the secure
-connection to prevent sending the password in clear over an unencrypted channel.
-
-Access to the host by unexpected users with sufficient privileges can be
-dangerous as they can retrieve the password with the following methods:
-  * By looking at the `VNC_PASSWORD` environment variable value via the
-    `docker inspect` command.  By defaut, the `docker` command can be run only
-    by the root user.  However, it is possible to configure the system to allow
-    the `docker` command to be run by any users part of a specific group.
-  * By decrypting the `/config/.vncpass` file.  This requires the user to have
-    the appropriate permission to read the file:  it has to be root or be the
-    user defined by the `USER_ID` environment variable.  Also, to be able to
-    retrieve the correct decryption key, one needs to know that the content of
-    the file was generated by `x11vnc`.
-
-### DH Parameters
-
-Diffie-Hellman (DH) parameters define how the [DH key-exchange] is performed.
-More details about this algorithm can be found on the [OpenSSL Wiki].
-
-DH Parameters are saved into the PEM encoded file located inside the container
-at `/config/certs/dhparam.pem`.  By default, when this file is missing, 2048
-bits DH parameters are automatically generated.  Note that this one-time
-operation takes some time to perform and increases the startup time of the
-container.
+These details come from the [base image], which documents them in full,
+including [SSVNC] for encrypted VNC from a client.
 
 [SSVNC]: http://www.karlrunge.com/x11vnc/ssvnc.html
-[DH key-exchange]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
-[OpenSSL Wiki]: https://wiki.openssl.org/index.php/Diffie_Hellman
+[base image]: https://github.com/jlesage/docker-baseimage-gui#security
 
 ## Installation Guide:
 1. Understand, that this docker is a volunteer project, not a commercial product. Some thinkering is to be expected, community based solution finding is encouraged in the issues. If something does not work: look for an open issue about the topic, if there isn't create one. If there is one read through it to see if somebody has found a workaround/fix. If you are a developer I highly encourage you to turn your fix into a Pull Request to allow others to benefit from it.
@@ -378,7 +300,7 @@ container.
 
     ![Bildschirmfoto von 2022-01-16 15-01-00](https://user-images.githubusercontent.com/28999431/149663289-d53c7241-5856-4032-af41-66a3fa513b36.png)
 
-1. If your [config folder] is somewehere inside the [backup folder] on the docker host side (which is the case for the Unraid template) in order to prevent an infinite loop of config file uploads, because those uploads change bz_done* files in [config folder]/wine/drive_c/ProgramData/Backblaze/bzdata/bzbackup/bzdatacenter open the web interface, open the Backblaze settings, open the "Exclusions" tab, click on "Add Folder" and in the popup navigate to My Computer -> (D:) and naviagate to the config folder inside. For unraid template installs this is My Computer -> (D:) -> appdata -> backblaze_personal_backup. Click on OK and close the Backblaze Settings.
+1. If your [config folder] sits inside the [backup folder] on the host (as it does with the Unraid template), exclude it - otherwise Backblaze uploads its own bookkeeping files, which changes them, which triggers another upload, forever. In the web interface open the Backblaze settings → "Exclusions" tab → "Add Folder", then navigate to My Computer → (D:) and pick the config folder (for Unraid template installs: My Computer → (D:) → appdata → backblaze_personal_backup). Click OK and close the settings.
 
 1. The Installation is done 🎉
 
@@ -448,21 +370,9 @@ container.
         tessypowder/backblaze-personal-wine:latest
     ````
 
-  - **Additional 'black screen' troubleshooting for Synology devices**:
-    - It may be necessary to run the container with even higher permissions (--privileged)
-
-    ````shell
-    docker run \
-        -p 8080:5800 \
-        --init \
-        --privileged \
-        -e USER_ID=0 \
-        -e GROUP_ID=0 \
-        --name backblaze_personal_backup \
-        -v "[backup folder]/:/drive_d/" \
-        -v "[config folder]/:/config/" \
-        tessypowder/backblaze-personal-wine:latest
-    ````
+  - **Additional 'black screen' troubleshooting for Synology devices**: it may be
+    necessary to run the container with even higher permissions - add
+    `--privileged` to the command above.
 
   - **For More Information**: See [#98](https://github.com/JonathanTreffler/backblaze-personal-wine-container/issues/98), [#99](https://github.com/JonathanTreffler/backblaze-personal-wine-container/issues/99)
   
