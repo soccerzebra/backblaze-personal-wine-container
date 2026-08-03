@@ -3,10 +3,11 @@
   "extends": [
     "config:recommended"
   ],
+  "pinDigests": true,
   "packageRules": [
     {
       "matchPackageNames": [
-        "jlesage/baseimage-gui",
+        "jlesage/baseimage-gui"
       ],
       "matchUpdateTypes": [
         "digest"
