@@ -16,8 +16,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 COPY patches/ /patches/
 COPY scripts/build-wineserver.sh /usr/local/bin/build-wineserver.sh
-RUN chmod 755 /usr/local/bin/build-wineserver.sh && \
-    /usr/local/bin/build-wineserver.sh \
+RUN /usr/local/bin/build-wineserver.sh \
         noble "$WINE_PACKAGE_VERSION" \
         "/patches/0001-server-rearm-FD_WRITE-when-reporting-a-socket-not-wri.patch" \
         /out/wineserver
@@ -103,5 +102,3 @@ RUN set -eux; \
     chown -R 1000:1000 /defaults
 
 COPY rootfs/ /
-# Must be world-readable/executable: the baseimage runs the app as a non-root user
-RUN chmod 755 /startapp.sh
