@@ -1,3 +1,26 @@
+# One Dockerfile builds both published variants. UBUNTU_SUITE selects which:
+#
+#   docker build .                                 # ubuntu22 (jammy), the default image
+#   docker build --build-arg UBUNTU_SUITE=noble .  # ubuntu24
+#
+# Everything that differs between the two is derived from that single arg. The
+# per-suite base images are declared as separate stages below and picked by name
+# rather than assembled from the suite string, so the image references stay
+# literal and Renovate keeps updating both variants. BuildKit prunes the stage
+# that is not selected - it does not even fetch its metadata.
+ARG UBUNTU_SUITE=jammy
+
+# Wine is pinned to one package revision for both halves (see the wineserver
+# swap below); the suite suffix is what WineHQ appends to its package versions.
+ARG WINE_VERSION=11.0.0.0
+ARG WINE_PACKAGE_VERSION=${WINE_VERSION}~${UBUNTU_SUITE}-1
+
+FROM ubuntu:22.04 AS wineserver-builder-base-jammy
+FROM ubuntu:24.04 AS wineserver-builder-base-noble
+
+FROM jlesage/baseimage-gui:ubuntu-22.04-v4.11.3 AS app-base-jammy
+FROM jlesage/baseimage-gui:ubuntu-24.04-v4.11.3 AS app-base-noble
+
 # Build a patched wineserver. Stock wineserver stalls every upload connection for a
 # full ~1s poll timeout per burst, capping each connection at ~0.7 Mbit/s (the
 # long-standing "slow since Backblaze 9.0.1" issue, #130 / #186). See
@@ -6,9 +29,9 @@
 # rebuilt, from the WineHQ *source* package for the exact same suite and package
 # revision as the winehq-stable binaries installed below - the wineserver
 # protocol is version-locked, so the two must come from one source revision.
-ARG WINE_PACKAGE_VERSION=11.0.0.0~noble-1
-FROM ubuntu:24.04 AS wineserver-builder
+FROM wineserver-builder-base-${UBUNTU_SUITE} AS wineserver-builder
 ARG DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_SUITE
 ARG WINE_PACKAGE_VERSION
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -18,12 +41,13 @@ COPY patches/ /patches/
 COPY scripts/build-wineserver.sh /usr/local/bin/build-wineserver.sh
 RUN chmod 755 /usr/local/bin/build-wineserver.sh && \
     /usr/local/bin/build-wineserver.sh \
-        noble "$WINE_PACKAGE_VERSION" \
+        "$UBUNTU_SUITE" "$WINE_PACKAGE_VERSION" \
         "/patches/0001-server-rearm-FD_WRITE-when-reporting-a-socket-not-wri.patch" \
         /out/wineserver
 
-FROM jlesage/baseimage-gui:ubuntu-24.04-v4.11.3
+FROM app-base-${UBUNTU_SUITE}
 ARG DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_SUITE
 ARG WINE_PACKAGE_VERSION
 
 ENV WINEPREFIX=/config/wine/
@@ -47,7 +71,7 @@ RUN dpkg --add-architecture i386 && \
     apt-get install -y --no-install-recommends ca-certificates curl xvfb locales cabextract 7zip && \
     install -dm755 /etc/apt/keyrings && \
     curl -fsSL https://dl.winehq.org/wine-builds/winehq.key -o /etc/apt/keyrings/winehq-archive.key && \
-    curl -fsSL https://dl.winehq.org/wine-builds/ubuntu/dists/noble/winehq-noble.sources -o /etc/apt/sources.list.d/winehq-noble.sources && \
+    curl -fsSL "https://dl.winehq.org/wine-builds/ubuntu/dists/${UBUNTU_SUITE}/winehq-${UBUNTU_SUITE}.sources" -o "/etc/apt/sources.list.d/winehq-${UBUNTU_SUITE}.sources" && \
     apt-get update && \
     apt-get install -y --install-recommends "winehq-stable=$WINE_PACKAGE_VERSION" && \
     curl -fsSL https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -o /usr/local/bin/winetricks && \
